@@ -1,5 +1,6 @@
 package searchengine.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -24,6 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author Tseliar Vladimir
  */
+@Slf4j
 public class SiteIndexingTask extends RecursiveAction {
 
     private final Site site;
@@ -32,15 +34,17 @@ public class SiteIndexingTask extends RecursiveAction {
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
     private final IndexingConfig config;
+    private final IndexingService indexingService;
 
     public SiteIndexingTask(Site site, String url, Set<String> visited, PageRepository pageRepository,
-                            SiteRepository siteRepository, IndexingConfig config) {
+                            SiteRepository siteRepository, IndexingConfig config, IndexingService indexingService) {
         this.site = site;
         this.url = url;
         this.visited = visited;
         this.pageRepository = pageRepository;
         this.siteRepository = siteRepository;
         this.config = config;
+        this.indexingService = indexingService;
     }
 
     /**
@@ -48,26 +52,32 @@ public class SiteIndexingTask extends RecursiveAction {
      */
     @Override
     protected void compute() {
-        if (!visited.add(url)) return;
+        if (indexingService.isStopRequested() || !visited.add(url)) {
+            return;
+        }
         try {
             Thread.sleep(ThreadLocalRandom.current().nextInt(100, 500));
             Connection.Response response = Jsoup.connect(url)
                     .userAgent(config.getUserAgent())
                     .referrer(config.getReferrer())
+                    .timeout(10000)
                     .execute();
 
             Document doc = response.parse();
             savePage(doc.html(), response.statusCode());
             updateStatusTime();
-
-            List<SiteIndexingTask> tasks = new ArrayList<>();
-            for (Element link : doc.select("a[href]")) {
-                String absUrl = link.attr("abs:href");
-                if (isValid(absUrl)) {
-                    tasks.add(new SiteIndexingTask(site, absUrl, visited, pageRepository, siteRepository, config));
+            if (!indexingService.isStopRequested()) {
+                List<SiteIndexingTask> tasks = new ArrayList<>();
+                for (Element link : doc.select("a[href]")) {
+                    String absUrl = link.attr("abs:href");
+                    if (isValid(absUrl)) {
+                        tasks.add(new SiteIndexingTask(site, absUrl, visited, pageRepository, siteRepository, config, indexingService));
+                    }
+                }
+                if (!tasks.isEmpty()) {
+                    invokeAll(tasks);
                 }
             }
-            invokeAll(tasks);
         } catch (Exception ignored) {
         }
     }

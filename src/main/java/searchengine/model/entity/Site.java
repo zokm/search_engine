@@ -29,9 +29,9 @@ public class Site {
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
-    @Column(name = "url", nullable = false, length = 255)
+    @Column(name = "url", nullable = false)
     private String url;
 
-    @Column(name = "name", nullable = false, length = 255)
+    @Column(name = "name", nullable = false)
     private String name;
 }

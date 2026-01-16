@@ -18,6 +18,4 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
     @Transactional
     @Query("DELETE FROM Page p WHERE p.site = :site")
     void deleteBySite(@Param("site") Site site);
-
-    void deleteBySiteId(Integer siteId);
 }

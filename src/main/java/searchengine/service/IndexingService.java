@@ -100,22 +100,22 @@ public class IndexingService {
             for (SiteConfig siteConfig : siteConfigs) {
                 String url = siteConfig.getUrl();
                 Optional<Site> siteOpt = siteRepository.findByUrl(url);
+                Site site;
                 if (siteOpt.isPresent()) {
-                    Site site = siteOpt.get();
+                    site = siteOpt.get();
                     site.setStatus(SiteStatus.FAILED);
                     site.setLastError("Индексация остановлена пользователем");
                     site.setStatusTime(LocalDateTime.now());
-                    siteRepository.save(site);
                 } else {
-                    Site site = Site.builder()
+                    site = Site.builder()
                             .url(url)
                             .name(siteConfig.getName())
                             .status(SiteStatus.FAILED)
                             .lastError("Индексация остановлена пользователем")
                             .statusTime(LocalDateTime.now())
                             .build();
-                    siteRepository.save(site);
                 }
+                siteRepository.save(site);
             }
             log.info("Обновлено статусов: {}", siteConfigs.size());
         } catch (Exception e) {

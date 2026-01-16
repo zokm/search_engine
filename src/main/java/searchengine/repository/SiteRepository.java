@@ -10,6 +10,4 @@ import java.util.Optional;
 public interface SiteRepository extends JpaRepository<Site, Integer> {
 
     Optional<Site> findByUrl(String url);
-
-    void deleteByUrl(String url);
 }

@@ -1,0 +1,15 @@
+package searchengine.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import searchengine.model.entity.IndexSearch;
+import searchengine.model.entity.Page;
+
+/**
+ * @author Tseliar Vladimir
+ */
+@Repository
+public interface IndexSearchRepository extends JpaRepository<IndexSearch, Integer> {
+
+    void deleteByPage(Page page);
+}

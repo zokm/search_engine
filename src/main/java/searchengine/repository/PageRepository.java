@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.entity.Page;
 import searchengine.model.entity.Site;
 
+import java.util.Optional;
+
 @Repository
 public interface PageRepository extends JpaRepository<Page, Integer> {
 
@@ -18,4 +20,6 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
     @Transactional
     @Query("DELETE FROM Page p WHERE p.site = :site")
     void deleteBySite(@Param("site") Site site);
+
+    Optional<Page> findBySiteAndPath(Site site, String path);
 }

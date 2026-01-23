@@ -5,8 +5,8 @@ import lombok.*;
 import javax.persistence.*;
 
 /**
- * Таблица search_index — связывает страницы и леммы с весом (rank).
- *
+ * Сущность поискового индекса: связь леммы и страницы с весом (rank).
+ * 
  * @author Tseliar Vladimir
  */
 @Entity
@@ -51,4 +51,3 @@ public class IndexSearch {
     @Column(name = "rank_value", nullable = false)
     private Float rank;
 }
-

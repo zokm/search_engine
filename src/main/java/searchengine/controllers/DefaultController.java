@@ -3,13 +3,18 @@ package searchengine.controllers;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+/**
+ * MVC-контроллер главной страницы (Thymeleaf)
+ * 
+ * @author Tseliar Vladimir
+ */
 @Controller
 public class DefaultController {
 
     /**
-     * Метод формирует страницу из HTML-файла index.html,
-     * который находится в папке resources/templates.
-     * Это делает библиотека Thymeleaf.
+     * Возвращает шаблон {@code index.html} из {@code resources/templates}.
+     *
+     * @return {@link String} имя шаблона
      */
     @RequestMapping("/")
     public String index() {

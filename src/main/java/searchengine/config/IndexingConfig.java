@@ -7,6 +7,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Настройки индексации из конфигурационного файла.
+ * 
+ * @author Tseliar Vladimir
+ */
 @Getter
 @Setter
 @Component

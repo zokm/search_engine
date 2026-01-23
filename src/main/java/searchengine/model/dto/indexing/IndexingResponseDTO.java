@@ -6,9 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * DTO для API /api/startIndexing и /api/stopIndexing
- * Содержит флаг успеха и сообщение об ошибке (если есть)
- *
+ * DTO ответа для эндпоинтов запуска/остановки индексации.
+ * 
  * @author Tseliar Vladimir
  */
 @Data
@@ -19,6 +18,11 @@ public class IndexingResponseDTO {
     private boolean result;
     private String error;
 
+    /**
+     * Конструктор ответа без текста ошибки.
+     *
+     * @param result {@link boolean} результат операции
+     */
     public IndexingResponseDTO(boolean result) {
         this.result = result;
     }

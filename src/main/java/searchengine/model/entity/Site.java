@@ -1,11 +1,19 @@
 package searchengine.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import searchengine.model.enums.SiteStatus;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * Сущность сайта, который участвует в индексации.
+ * 
+ * @author Tseliar Vladimir
+ */
 @Entity
 @Table(name = "site")
 @Getter
@@ -34,4 +42,14 @@ public class Site {
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    @JsonIgnore
+    private List<Page> pages = new ArrayList<>();
+
+    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    @JsonIgnore
+    private List<Lemma> lemmas = new ArrayList<>();
 }

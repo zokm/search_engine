@@ -7,9 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для API indexPage
- * Содержит флаг успеха и сообщение об ошибке (если есть)
- *
+ * DTO ответа для эндпоинта {@code /api/indexPage}
+ * 
  * @author Tseliar Vladimir
  */
 @Getter
@@ -21,5 +20,14 @@ public class IndexPageResponse {
 
     private boolean result;
     private String error;
-}
 
+    /**
+     * Конструктор ответа с текстом ошибки.
+     *
+     * @param result {@link boolean} результат операции
+     */
+    public IndexPageResponse(boolean result) {
+        this.result = result;
+        this.error = null;
+    }
+}

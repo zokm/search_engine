@@ -1,8 +1,8 @@
 package searchengine.model.enums;
 
 /**
- * Список статусов индексации
- *
+ * Статус индексации сайта.
+ * 
  * @author Tseliar Vladimir
  */
 public enum SiteStatus {

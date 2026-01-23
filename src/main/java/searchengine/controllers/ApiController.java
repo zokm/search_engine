@@ -10,6 +10,11 @@ import searchengine.service.IndexingService;
 import searchengine.service.PageIndexingService;
 import searchengine.service.StatisticsService;
 
+/**
+ * REST-контроллер API для индексации и статистики.
+ *
+ * @author Tseliar Vladimir
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -19,23 +24,48 @@ public class ApiController {
     private final IndexingService indexingService;
     private final PageIndexingService pageIndexingService;
 
+    /**
+     * Возвращает статистику по индексации и текущему состоянию индекса.
+     *
+     * @return {@link ResponseEntity}<{@link StatisticsResponse}> с ответом со статистикой
+     */
     @GetMapping("/statistics")
     public ResponseEntity<StatisticsResponse> statistics() {
         return ResponseEntity.ok(statisticsService.getStatistics());
     }
 
+    /**
+     * Запускает полную индексацию всех сайтов из конфигурации.
+     *
+     * @return {@link ResponseEntity}<{@link IndexingResponseDTO}> с ответом о результате запуска
+     */
     @GetMapping("/startIndexing")
     public ResponseEntity<IndexingResponseDTO> startIndexing() {
         return ResponseEntity.ok(indexingService.startIndexing());
     }
 
+    /**
+     * Останавливает текущую индексацию.
+     *
+     * @return {@link ResponseEntity}<{@link IndexingResponseDTO}> с ответом о результате остановки
+     */
     @GetMapping("/stopIndexing")
     public ResponseEntity<IndexingResponseDTO> stopIndexing() {
         return ResponseEntity.ok(indexingService.stopIndexing());
     }
 
+    /**
+     * Переиндексирует одну страницу по URL.
+     *
+     * @param url {@link String} URL страницы
+     * @return {@link ResponseEntity}<{@link IndexPageResponse}> с ответом о результате операции
+     */
     @PostMapping("/indexPage")
-    public IndexPageResponse indexPage(@RequestParam("url") String url) {
-        return pageIndexingService.indexPage(url);
+    public ResponseEntity<IndexPageResponse> indexPage(@RequestParam("url") String url) {
+        IndexPageResponse response = pageIndexingService.indexPage(url);
+        if (response.isResult()) {
+            return ResponseEntity.ok(response);
+        }
+        return ResponseEntity.badRequest().body(response);
     }
 }

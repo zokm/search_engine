@@ -12,6 +12,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
+ * Извлекает леммы из текста с использованием Lucene Morphology.
+ * 
  * @author Tseliar Vladimir
  */
 @Service
@@ -19,15 +21,22 @@ public class LemmaFinder {
 
     private final LuceneMorphology luceneMorph;
 
-    public LemmaFinder() throws IOException {
-        this.luceneMorph = new RussianLuceneMorphology();
+    /**
+     * Создаёт экземпляр анализатора и инициализирует морфологию русского языка.
+     */
+    public LemmaFinder() {
+        try {
+            this.luceneMorph = new RussianLuceneMorphology();
+        } catch (IOException e) {
+            throw new RuntimeException("Не удалось инициализировать морфологический анализатор", e);
+        }
     }
 
     /**
-     * Метод собирает леммы из текста HTML
+     * Собирает леммы из HTML-текста и считает их количество.
      *
-     * @param html {@link String} текст
-     * @return {@link Map}<{@link String}, {@link Integer}> коллекция лемм и их количества в тексте html
+     * @param html {@link String} HTML-код страницы
+     * @return {@link Map}<{@link String}, {@link Integer}> карта {@code лемма -> количество} для текста страницы
      */
     public Map<String, Integer> collectLemmas(String html) {
         String text = cleanHtml(html).toLowerCase(Locale.ROOT);
@@ -48,7 +57,10 @@ public class LemmaFinder {
     }
 
     /**
-     * Метод очищает HTML-код страницы, оставляя только текст
+     * Удаляет HTML-теги, оставляя только текст.
+     *
+     * @param html {@link String} HTML-код
+     * @return {@link String} текст без тегов
      */
     public String cleanHtml(String html) {
         if (html == null || html.isBlank()) return "";
@@ -56,10 +68,10 @@ public class LemmaFinder {
     }
 
     /**
-     * Метод для определения служебных слов
+     * Определяет, является ли слово служебной частью речи, которую нужно исключить.
      *
-     * @param morphInfo {@link List}<{@link String}> список морфологических характеристик слова
-     * @return {@link Boolean} true - если слово служебное, иначе false
+     * @param morphInfo {@link List}<{@link String}> морфологическая информация
+     * @return true, если слово нужно игнорировать
      */
     private boolean isServiceWord(List<String> morphInfo) {
         for (String info : morphInfo) {

@@ -13,13 +13,12 @@ import searchengine.repository.SiteRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Сервис для запуска и управления индексацией сайтов
- *
+ * Сервис управления индексацией: запуск, остановка и состояние процесса.
+ * 
  * @author Tseliar Vladimir
  */
 @Service
@@ -37,9 +36,18 @@ public class IndexingService {
     private volatile boolean stopRequested = false;
 
     /**
-     * Метод запускает индексацию сайтов из конфигурации по одному в асинхронном режиме
+     * Возвращает признак того, что пользователь запросил остановку индексации.
      *
-     * @return {@link IndexingResponseDTO} результат запуска
+     * @return true, если остановка запрошена
+     */
+    public boolean isStopRequested() {
+        return stopRequested;
+    }
+
+    /**
+     * Запускает индексацию всех сайтов из конфигурации.
+     *
+     * @return {@link IndexingResponseDTO} DTO-ответ о результате запуска
      */
     public IndexingResponseDTO startIndexing() {
         if (!indexingInProgress.compareAndSet(false, true)) {
@@ -57,8 +65,7 @@ public class IndexingService {
     }
 
     /**
-     * Метод для завершения индексации одного сайта.
-     * Вызывается из AsyncSiteIndexingService
+     * Отмечает завершение индексации одного сайта (вызывается из {@link AsyncSiteIndexingService}).
      */
     public void completeSiteIndexing() {
         if (activeSites.decrementAndGet() <= 0) {
@@ -72,9 +79,9 @@ public class IndexingService {
     }
 
     /**
-     * Метод для принудительной остановки индексации
+     * Останавливает текущую индексацию.
      *
-     * @return {@link IndexingResponseDTO} результат остановки
+     * @return {@link IndexingResponseDTO} DTO-ответ о результате остановки
      */
     public synchronized IndexingResponseDTO stopIndexing() {
         if (!indexingInProgress.get()) {
@@ -92,34 +99,28 @@ public class IndexingService {
     }
 
     /**
-     * Метод для обновления статусов всех сайтов в БД
+     * Переводит все сайты из конфигурации в статус {@link SiteStatus#FAILED} с указанием причины остановки.
      */
     private void updateAllSitesToFailed() {
         try {
             List<SiteConfig> siteConfigs = config.getSites();
             for (SiteConfig siteConfig : siteConfigs) {
                 String url = siteConfig.getUrl();
-                Optional<Site> siteOpt = siteRepository.findByUrl(url);
-                Site site;
-                if (siteOpt.isPresent()) {
-                    site = siteOpt.get();
-                    site.setStatus(SiteStatus.FAILED);
-                    site.setLastError("Индексация остановлена пользователем");
-                    site.setStatusTime(LocalDateTime.now());
+                List<Site> sites = siteRepository.findAllByUrl(url);
+                if (!sites.isEmpty()) {
+                    for (Site site : sites) {
+                        site.setStatus(SiteStatus.FAILED);
+                        site.setLastError("Индексация остановлена пользователем");
+                        site.setStatusTime(LocalDateTime.now());
+                        siteRepository.save(site);
+                    }
                 } else {
-                    site = Site.builder()
-                            .url(url)
-                            .name(siteConfig.getName())
-                            .status(SiteStatus.FAILED)
-                            .lastError("Индексация остановлена пользователем")
-                            .statusTime(LocalDateTime.now())
-                            .build();
+                    log.debug("Сайт {} не найден при остановке индексации, пропускаем создание", url);
                 }
-                siteRepository.save(site);
             }
-            log.info("Обновлено статусов: {}", siteConfigs.size());
+            log.info("Обновлено статусов для остановки индексации");
         } catch (Exception e) {
-            log.error("Ошибка при обновлении статусов: {}", e.getMessage());
+            log.error("Ошибка при обновлении статусов: {}", e.getMessage(), e);
         }
     }
 }

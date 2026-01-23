@@ -1,12 +1,17 @@
 package searchengine.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Таблица lemma — хранит уникальные леммы (слова) и частоту их появления.
+ * Сущность леммы (нормальной формы слова) в рамках конкретного сайта.
  *
+ * <p>Поле frequency показывает количество страниц, на которых лемма встречается хотя бы один раз.</p>
+ * 
  * @author Tseliar Vladimir
  */
 @Entity
@@ -37,6 +42,7 @@ public class Lemma {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_lemma_site")
     )
+    @JsonIgnore
     private Site site;
 
     @Column(name = "lemma", nullable = false, length = 255)
@@ -44,5 +50,9 @@ public class Lemma {
 
     @Column(name = "frequency", nullable = false)
     private int frequency;
-}
 
+    @OneToMany(mappedBy = "lemma", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    @JsonIgnore
+    private List<IndexSearch> indexes = new ArrayList<>();
+}

@@ -11,6 +11,8 @@ import searchengine.model.entity.Lemma;
 import searchengine.model.entity.Page;
 import searchengine.model.entity.Site;
 
+import java.util.List;
+
 /**
  * Репозиторий для сущности {@link searchengine.model.entity.IndexSearch}.
  * 
@@ -71,4 +73,28 @@ public interface IndexSearchRepository extends JpaRepository<IndexSearch, Intege
             ON DUPLICATE KEY UPDATE rank_value = VALUES(rank_value)
             """, nativeQuery = true)
     void upsertRank(@Param("pageId") int pageId, @Param("lemmaId") int lemmaId, @Param("rankValue") float rankValue);
+
+    /**
+     * Возвращает список страниц, содержащих все указанные леммы, с суммой rank по этим леммам.
+     *
+     * @param siteId ID сайта
+     * @param lemmaIds ID лемм
+     * @param lemmaCount количество лемм (для условия пересечения)
+     * @return {@link List}<{@link Object[]}> список строк вида {@code [page_id, abs_sum]}
+     */
+    @Query(value = """
+            SELECT si.page_id AS pageId, SUM(si.rank_value) AS absSum
+            FROM search_index si
+            JOIN page p ON p.id = si.page_id
+            WHERE p.site_id = :siteId
+              AND p.code < 400
+              AND si.lemma_id IN (:lemmaIds)
+            GROUP BY si.page_id
+            HAVING COUNT(DISTINCT si.lemma_id) = :lemmaCount
+            """, nativeQuery = true)
+    List<Object[]> findPageAbsRelevance(
+            @Param("siteId") int siteId,
+            @Param("lemmaIds") List<Integer> lemmaIds,
+            @Param("lemmaCount") int lemmaCount
+    );
 }

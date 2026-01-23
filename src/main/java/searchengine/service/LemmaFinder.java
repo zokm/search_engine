@@ -57,6 +57,39 @@ public class LemmaFinder {
     }
 
     /**
+     * Собирает леммы из обычного текста (без HTML) и считает их количество.
+     *
+     * @param text {@link String} текст запроса/строка текста
+     * @return {@link Map}<{@link String}, {@link Integer}> карта {@code лемма -> количество} для переданного текста
+     */
+    public Map<String, Integer> collectLemmasFromText(String text) {
+        if (text == null || text.isBlank()) {
+            return new HashMap<>();
+        }
+        String normalized = text.toLowerCase(Locale.ROOT);
+        String[] words = normalized.replaceAll("[^а-яё\\s]", " ")
+                .trim()
+                .split("\\s+");
+        Map<String, Integer> result = new HashMap<>();
+        for (String word : words) {
+            if (word.isBlank()) {
+                continue;
+            }
+            List<String> morphInfo = luceneMorph.getMorphInfo(word);
+            if (isServiceWord(morphInfo)) {
+                continue;
+            }
+            List<String> normalForms = luceneMorph.getNormalForms(word);
+            if (normalForms.isEmpty()) {
+                continue;
+            }
+            String lemma = normalForms.get(0);
+            result.merge(lemma, 1, Integer::sum);
+        }
+        return result;
+    }
+
+    /**
      * Удаляет HTML-теги, оставляя только текст.
      *
      * @param html {@link String} HTML-код

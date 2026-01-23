@@ -10,6 +10,7 @@ import searchengine.model.entity.Lemma;
 import searchengine.model.entity.Page;
 import searchengine.model.entity.Site;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +30,15 @@ public interface LemmaRepository extends JpaRepository<Lemma, Integer> {
      * @return {@link Optional}<{@link Lemma}> найденная лемма (если есть)
      */
     Optional<Lemma> findBySiteAndLemma(Site site, String lemma);
+
+    /**
+     * Возвращает леммы сайта по списку текстов лемм.
+     *
+     * @param site {@link Site} сайт
+     * @param lemmas {@link Collection}<{@link String}> список текстов лемм
+     * @return {@link List}<{@link Lemma}> список найденных лемм
+     */
+    List<Lemma> findBySiteAndLemmaIn(Site site, Collection<String> lemmas);
 
     /**
      * Удаляет все леммы сайта.

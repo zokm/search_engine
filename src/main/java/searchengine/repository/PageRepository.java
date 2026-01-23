@@ -63,4 +63,13 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
      * @return количество страниц
      */
     long countBySite(Site site);
+
+    /**
+     * Возвращает страницы по списку идентификаторов, подгружая связанные сайты одним запросом.
+     *
+     * @param ids {@link List}<{@link Integer}> идентификаторы страниц
+     * @return {@link List}<{@link Page}> список страниц
+     */
+    @Query("SELECT p FROM Page p JOIN FETCH p.site WHERE p.id IN :ids")
+    List<Page> findAllByIdInWithSite(@Param("ids") List<Integer> ids);
 }

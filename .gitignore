@@ -32,3 +32,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### macOS ###
+.DS_Store
+
+### Local secrets (do not commit) ###
+src/main/resources/application-local.yaml
+src/main/resources/application-local.yml

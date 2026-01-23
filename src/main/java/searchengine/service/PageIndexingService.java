@@ -56,26 +56,30 @@ public class PageIndexingService {
             return new IndexPageResponse(false,
                     "Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
         }
+        Site site = null;
+        boolean siteExisted = false;
+        SiteStatus previousStatus = null;
+        String previousError = null;
         try {
             URI uri = URI.create(url);
             String siteUrl = siteConfig.getUrl();
             String path = uri.getPath();
             if (path.isEmpty()) path = "/";
-            Site site = siteRepository.findByUrl(siteUrl)
-                    .orElseGet(() -> siteRepository.save(
-                            Site.builder()
-                                    .url(siteUrl)
-                                    .name(siteConfig.getName())
-                                    .status(SiteStatus.INDEXING)
-                                    .statusTime(LocalDateTime.now())
-                                    .build()
-                    ));
-            site.setStatus(SiteStatus.INDEXING);
-            site.setStatusTime(LocalDateTime.now());
-            siteRepository.save(site);
-
-            pageRepository.findBySiteAndPath(site, path)
-                    .ifPresent(this::removePageData);
+            site = siteRepository.findByUrl(siteUrl).orElse(null);
+            siteExisted = site != null;
+            if (siteExisted) {
+                previousStatus = site.getStatus();
+                previousError = site.getLastError();
+            } else {
+                site = siteRepository.save(
+                        Site.builder()
+                                .url(siteUrl)
+                                .name(siteConfig.getName())
+                                .status(SiteStatus.INDEXING)
+                                .statusTime(LocalDateTime.now())
+                                .build()
+                );
+            }
 
             Connection.Response response = Jsoup.connect(url)
                     .userAgent(config.getUserAgent())
@@ -86,13 +90,21 @@ public class PageIndexingService {
                     .execute();
             int statusCode = response.statusCode();
             if (statusCode >= 400) {
+                updateSiteAfterFailure(site, siteExisted, previousStatus, previousError,
+                        "Ошибка индексации страницы: HTTP " + statusCode);
                 return new IndexPageResponse(false, "Не удалось проиндексировать страницу: HTTP " + statusCode);
             }
             String contentType = response.contentType();
             if (contentType == null || !(contentType.startsWith("text/") || contentType.contains("xml"))) {
+                updateSiteAfterFailure(site, siteExisted, previousStatus, previousError,
+                        "Ошибка индексации страницы: неподдерживаемый Content-Type " + contentType);
                 return new IndexPageResponse(false, "Не удалось проиндексировать страницу: неподдерживаемый Content-Type " + contentType);
             }
             String html = response.body();
+
+            pageRepository.findBySiteAndPath(site, path)
+                    .ifPresent(this::removePageData);
+
             Page page = pageRepository.save(
                     Page.builder()
                             .site(site)
@@ -105,18 +117,61 @@ public class PageIndexingService {
             if (lemmaCounts != null && !lemmaCounts.isEmpty()) {
                 saveLemmasWithRetry(page, lemmaCounts, site);
             }
-            site.setStatus(SiteStatus.INDEXED);
+            if (siteExisted && previousStatus == SiteStatus.INDEXING) {
+                site.setStatus(SiteStatus.INDEXING);
+            } else {
+                site.setStatus(SiteStatus.INDEXED);
+            }
             site.setStatusTime(LocalDateTime.now());
             site.setLastError(null);
             siteRepository.save(site);
             return new IndexPageResponse(true, null);
         } catch (UnsupportedMimeTypeException e) {
             log.debug("Неподдерживаемый content-type при индексации {}: {}", url, e.getMimeType());
+            updateSiteAfterFailure(site, siteExisted, previousStatus, previousError,
+                    "Ошибка индексации страницы: неподдерживаемый Content-Type " + e.getMimeType());
             return new IndexPageResponse(false, "Не удалось проиндексировать страницу: неподдерживаемый Content-Type " + e.getMimeType());
         } catch (Exception e) {
             log.error("Ошибка индексации страницы {}: {}", url, e.getMessage(), e);
+            updateSiteAfterFailure(site, siteExisted, previousStatus, previousError,
+                    "Ошибка индексации страницы: " + e.getMessage());
             return new IndexPageResponse(false, "Не удалось проиндексировать страницу: " + e.getMessage());
         }
+    }
+
+    /**
+     * Обновляет статус сайта после неудачной попытки индексации страницы.
+     *
+     * <p>Если сайт уже существовал в БД, статус и lastError возвращаются к предыдущим значениям,
+     * чтобы не оставлять сайт в состоянии INDEXING из-за ошибки одной страницы.</p>
+     *
+     * <p>Если сайт был создан в рамках текущего вызова, он переводится в статус FAILED и получает lastError.</p>
+     *
+     * @param site {@link Site} сайт
+     * @param siteExisted признак, что сайт существовал до вызова
+     * @param previousStatus {@link SiteStatus} статус сайта до попытки индексации страницы
+     * @param previousError {@link String} lastError сайта до попытки индексации страницы
+     * @param error {@link String} текст ошибки для нового сайта
+     */
+    private void updateSiteAfterFailure(
+            Site site,
+            boolean siteExisted,
+            SiteStatus previousStatus,
+            String previousError,
+            String error
+    ) {
+        if (site == null) {
+            return;
+        }
+        if (siteExisted) {
+            site.setStatus(previousStatus);
+            site.setLastError(previousError);
+        } else {
+            site.setStatus(SiteStatus.FAILED);
+            site.setLastError(error);
+        }
+        site.setStatusTime(LocalDateTime.now());
+        siteRepository.save(site);
     }
 
     /**

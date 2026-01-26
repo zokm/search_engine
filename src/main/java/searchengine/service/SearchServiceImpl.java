@@ -41,10 +41,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SearchServiceImpl implements SearchService {
 
-    private static final int DEFAULT_OFFSET = 0;
-    private static final int DEFAULT_LIMIT = 20;
     private static final int SNIPPET_LENGTH = 240;
     private static final double MAX_FREQUENCY_RATIO = 0.8d;
+    private static final Pattern WORD_PATTERN = Pattern.compile("[\\p{L}\\p{Nd}]+");
 
     private final IndexingConfig indexingConfig;
     private final SiteRepository siteRepository;
@@ -158,7 +157,7 @@ public class SearchServiceImpl implements SearchService {
             String content = page.getContent();
             Document doc = Jsoup.parse(content == null ? "" : content);
             String title = extractTitle(doc);
-            String snippet = buildSnippet(doc.text(), queryTerms, SNIPPET_LENGTH);
+            String snippet = buildSnippet(doc.text(), queryTerms, lemmaTexts, SNIPPET_LENGTH);
             float relevance = (float) (hit.absRelevance() / maxAbs);
             data.add(new SearchResultItem(siteBase, site.getName(), page.getPath(), title, snippet, relevance));
         }
@@ -322,27 +321,21 @@ public class SearchServiceImpl implements SearchService {
     }
 
     /**
-     * Формирует сниппет фиксированной длины с подсветкой найденных токенов.
+     * Формирует сниппет фиксированной длины с подсветкой найденных слов запроса.
      *
      * @param text {@link String} исходный текст страницы
-     * @param terms {@link List}<{@link String}> токены запроса
+     * @param queryTerms {@link List}<{@link String}> токены запроса (в нижнем регистре)
+     * @param queryLemmas {@link Set}<{@link String}> леммы запроса (в нижнем регистре)
      * @param maxLength максимальная длина сниппета
      * @return {@link String} сниппет в HTML-формате
      */
-    private static String buildSnippet(String text, List<String> terms, int maxLength) {
+    private String buildSnippet(String text, List<String> queryTerms, Set<String> queryLemmas, int maxLength) {
         String normalized = (text == null ? "" : text).replaceAll("\\s+", " ").trim();
         if (normalized.isEmpty()) {
             return "";
         }
 
-        String lower = normalized.toLowerCase(Locale.ROOT);
-        int matchIndex = -1;
-        for (String term : terms) {
-            int idx = lower.indexOf(term.toLowerCase(Locale.ROOT));
-            if (idx >= 0 && (matchIndex < 0 || idx < matchIndex)) {
-                matchIndex = idx;
-            }
-        }
+        int matchIndex = findFirstMatchIndex(normalized, queryTerms, queryLemmas);
 
         int start;
         if (matchIndex < 0) {
@@ -356,12 +349,72 @@ public class SearchServiceImpl implements SearchService {
         }
 
         String snippet = normalized.substring(start, end).trim();
+        List<String> highlightTerms = buildHighlightTerms(queryTerms, queryLemmas, snippet);
         String escaped = escapeHtml(snippet);
-        String highlighted = highlightTerms(escaped, terms);
+        String highlighted = highlightTerms(escaped, highlightTerms);
 
         String prefix = start > 0 ? "... " : "";
         String suffix = end < normalized.length() ? " ..." : "";
         return prefix + highlighted + suffix;
+    }
+
+    /**
+     * Находит позицию первого совпадения в тексте: сначала по токенам запроса, затем по леммам.
+     *
+     * @param text {@link String} исходный текст страницы
+     * @param queryTerms {@link List}<{@link String}> токены запроса
+     * @param queryLemmas {@link Set}<{@link String}> леммы запроса
+     * @return позиция совпадения или -1, если совпадений не найдено
+     */
+    private int findFirstMatchIndex(String text, List<String> queryTerms, Set<String> queryLemmas) {
+        if (text == null || text.isBlank()) {
+            return -1;
+        }
+        Set<String> termSet = new HashSet<>(queryTerms);
+        boolean hasLemmas = queryLemmas != null && !queryLemmas.isEmpty();
+
+        Matcher m = WORD_PATTERN.matcher(text);
+        while (m.find()) {
+            String word = m.group();
+            String lowerWord = word.toLowerCase(Locale.ROOT);
+            if (termSet.contains(lowerWord)) {
+                return m.start();
+            }
+            if (hasLemmas) {
+                String lemma = lemmaFinder.getLemmaForWord(word);
+                if (lemma != null && queryLemmas.contains(lemma)) {
+                    return m.start();
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Формирует список токенов для подсветки в сниппете.
+     *
+     * <p>Кроме исходных токенов запроса добавляет словоформы из сниппета, которые соответствуют леммам запроса.</p>
+     *
+     * @param queryTerms {@link List}<{@link String}> токены запроса
+     * @param queryLemmas {@link Set}<{@link String}> леммы запроса
+     * @param snippet {@link String} текст сниппета (без HTML)
+     * @return {@link List}<{@link String}> список токенов для подсветки (в нижнем регистре), отсортированных по длине
+     */
+    private List<String> buildHighlightTerms(List<String> queryTerms, Set<String> queryLemmas, String snippet) {
+        Set<String> terms = new HashSet<>(queryTerms);
+        if (snippet != null && !snippet.isBlank() && queryLemmas != null && !queryLemmas.isEmpty()) {
+            Matcher m = WORD_PATTERN.matcher(snippet);
+            while (m.find()) {
+                String word = m.group();
+                String lemma = lemmaFinder.getLemmaForWord(word);
+                if (lemma != null && queryLemmas.contains(lemma)) {
+                    terms.add(word.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        List<String> result = new ArrayList<>(terms);
+        result.sort((a, b) -> Integer.compare(b.length(), a.length()));
+        return result;
     }
 
     /**

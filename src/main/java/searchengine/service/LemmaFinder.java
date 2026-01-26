@@ -90,6 +90,36 @@ public class LemmaFinder {
     }
 
     /**
+     * Возвращает лемму для одного слова (русский язык) или {@code null}, если слово не удалось разобрать
+     * или оно является служебной частью речи (междометие, союз, предлог, частица).
+     *
+     * @param word {@link String} одно слово (словоформа)
+     * @return {@link String} лемма или {@code null}
+     */
+    public String getLemmaForWord(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String normalized = word.toLowerCase(Locale.ROOT);
+        if (!normalized.matches("[а-яё]+")) {
+            return null;
+        }
+        try {
+            List<String> morphInfo = luceneMorph.getMorphInfo(normalized);
+            if (isServiceWord(morphInfo)) {
+                return null;
+            }
+            List<String> normalForms = luceneMorph.getNormalForms(normalized);
+            if (normalForms.isEmpty()) {
+                return null;
+            }
+            return normalForms.get(0);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * Удаляет HTML-теги, оставляя только текст.
      *
      * @param html {@link String} HTML-код

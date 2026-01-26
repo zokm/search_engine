@@ -63,11 +63,13 @@ public class StatisticsServiceImpl implements StatisticsService {
                 item.setError("Индексация не запускалась");
             } else {
                 item.setStatus(site.getStatus().name());
-                item.setStatusTime(toEpochSeconds(site.getStatusTime()));
+                item.setStatusTime(toEpochMillis(site.getStatusTime()));
                 item.setPages(safeLongToInt(pageRepository.countBySite(site)));
                 item.setLemmas(safeLongToInt(lemmaRepository.countBySite(site)));
                 if (site.getStatus() == SiteStatus.FAILED && StringUtils.hasText(site.getLastError())) {
                     item.setError(site.getLastError());
+                } else {
+                    item.setError("");
                 }
             }
             detailed.add(item);
@@ -83,16 +85,16 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     /**
-     * Преобразует {@link LocalDateTime} в секунды Unix epoch.
+     * Преобразует {@link LocalDateTime} в миллисекунды Unix epoch.
      *
      * @param time {@link LocalDateTime} дата/время
-     * @return секунды Unix epoch
+     * @return миллисекунды Unix epoch
      */
-    private static long toEpochSeconds(LocalDateTime time) {
+    private static long toEpochMillis(LocalDateTime time) {
         if (time == null) {
             return 0L;
         }
-        return time.atZone(ZoneId.systemDefault()).toEpochSecond();
+        return time.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     /**

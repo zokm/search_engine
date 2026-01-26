@@ -73,7 +73,7 @@ public class SiteIndexingTask extends RecursiveAction {
 
             int statusCode = response.statusCode();
             if (statusCode >= 400) {
-                log.warn("Пропускаем страницу с кодом {}: {}", statusCode, url);
+                log.debug("Пропускаем страницу с кодом {}: {}", statusCode, url);
                 return;
             }
             String contentType = response.contentType();
@@ -167,7 +167,7 @@ public class SiteIndexingTask extends RecursiveAction {
                     saveLemmasWithRetry(page, lemmaCounts, currentSite);
                     log.debug("Сохранена страница: {} для сайта: {} (лемм: {})", path, currentSite.getUrl(), lemmaCounts.size());
                 } else {
-                    log.warn("Не найдено лемм на странице: {} для сайта: {}", path, currentSite.getUrl());
+                    log.debug("Не найдено лемм на странице: {} для сайта: {}", path, currentSite.getUrl());
                 }
             } catch (Exception lemmaError) {
                 log.error("Ошибка при сохранении лемм для страницы {}: {}", url, lemmaError.getMessage(), lemmaError);
